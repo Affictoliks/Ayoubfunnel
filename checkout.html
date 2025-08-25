@@ -3,49 +3,73 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Checkout • Shop</title>
+  <title>Checkout</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f172a;color:#e5e7eb}
     .wrap{max-width:720px;margin:0 auto;padding:20px}
     .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:16px}
+    label{display:block;margin:10px 0 6px}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid #263245;background:#0b1220;color:#e5e7eb}
+    button{margin-top:12px;background:#1d4ed8;color:#fff;border:0;padding:12px 16px;border-radius:12px;font-weight:800;cursor:pointer;width:100%}
     .muted{color:#94a3b8}
+    .error{background:#450a0a;border:1px solid #7f1d1d;padding:10px;border-radius:10px;color:#fecaca;margin-bottom:10px;display:none}
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Checkout</h1>
     <p id="summary" class="muted"></p>
-    <div class="card">
-      <!-- 👉 PASTE YOUR CONVERTKIT JS EMBED RIGHT BELOW THIS LINE -->
-      <!-- Example: <script async data-uid="abc123" src="https://f.convertkit.com/abc123.js"></script> -->
-      <!-- END EMBED -->
+    <div id="err" class="error"></div>
 
-      <p class="muted" style="margin-top:12px">You’ll receive a thank-you email automatically.</p>
-    </div>
+    <!-- Direct POST to ConvertKit -->
+    <form id="ck" class="card" action="https://app.convertkit.com/forms/FORM_ID/subscriptions" method="post">
+      <!-- visible fields only -->
+      <label>Full name *</label>
+      <input name="first_name" type="text" required placeholder="Full name"/>
+
+      <label>Email *</label>
+      <input name="email_address" type="email" required placeholder="you@example.com"/>
+
+      <label>Phone *</label>
+      <input name="fields[phone]" type="tel" required placeholder="+1 555 123 4567"/>
+
+      <label>City *</label>
+      <input name="fields[city]" type="text" required placeholder="City"/>
+
+      <!-- hidden (auto-filled) -->
+      <input type="hidden" name="fields[product_id]" id="product_id">
+      <input type="hidden" name="fields[product]"    id="product">
+      <input type="hidden" name="fields[price]"      id="price">
+
+      <button type="submit">Confirm</button>
+      <p class="muted" style="margin-top:8px">You’ll receive a thank-you email automatically.</p>
+    </form>
   </div>
 
   <script>
-    // show product & price from URL
-    const q = new URLSearchParams(location.search);
-    const product = q.get('product') || 'Your Product';
-    const price   = q.get('price')   || '0.00';
-    document.getElementById('summary').textContent = `You're buying: ${product} — $${price}`;
-
-    // if your CK form includes custom fields "product" and "price",
-    // this tries to set them after the form loads:
-    const tryFill = ()=>{
-      const f = document.querySelector('form[action*="convertkit"]') || document.querySelector('form');
-      if (!f) return;
-      const set = (name,val)=>{
-        let el = f.querySelector(`[name="fields[${name}]"]`);
-        if(!el){ el = document.createElement('input'); el.type='hidden'; el.name=`fields[${name}]`; f.appendChild(el); }
-        el.value = val;
-      };
-      set('product', product);
-      set('price', price);
+    // Same catalog as product.html (IDs → details). Keep this in sync.
+    const PRODUCTS = {
+      "HP-001": { name:"Wireless Pro Headphones", price:"49.00" },
+      "SP-002": { name:"Smartwatch Plus",         price:"79.00" },
+      "BK-003": { name:"Power Bank 20k",          price:"29.00" }
     };
-    // run a few times in case embed loads async
-    tryFill(); setTimeout(tryFill, 800); setTimeout(tryFill, 1600);
+
+    const q = new URLSearchParams(location.search);
+    const pid = q.get('pid');
+    const sel = pid && PRODUCTS[pid];
+
+    if (!sel) {
+      document.getElementById('err').textContent = 'Invalid product link. Please go back and choose a product.';
+      document.getElementById('err').style.display = 'block';
+      document.querySelector('#ck button[type="submit"]').disabled = true;
+      document.getElementById('summary').textContent = '';
+    } else {
+      document.getElementById('summary').textContent = `You're buying: ${sel.name} (ID: ${pid}) — $${sel.price}`;
+      // auto-fill hidden fields for ConvertKit
+      document.getElementById('product_id').value = pid;
+      document.getElementById('product').value    = sel.name;
+      document.getElementById('price').value      = sel.price;
+    }
   </script>
 </body>
 </html>

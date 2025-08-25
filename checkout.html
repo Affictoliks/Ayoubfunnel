@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Checkout • Shop</title>
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f172a;color:#e5e7eb}
+    .wrap{max-width:720px;margin:0 auto;padding:20px}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:16px}
+    .muted{color:#94a3b8}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Checkout</h1>
+    <p id="summary" class="muted"></p>
+    <div class="card">
+      <!-- 👉 PASTE YOUR CONVERTKIT JS EMBED RIGHT BELOW THIS LINE -->
+      <!-- Example: <script async data-uid="abc123" src="https://f.convertkit.com/abc123.js"></script> -->
+      <!-- END EMBED -->
+
+      <p class="muted" style="margin-top:12px">You’ll receive a thank-you email automatically.</p>
+    </div>
+  </div>
+
+  <script>
+    // show product & price from URL
+    const q = new URLSearchParams(location.search);
+    const product = q.get('product') || 'Your Product';
+    const price   = q.get('price')   || '0.00';
+    document.getElementById('summary').textContent = `You're buying: ${product} — $${price}`;
+
+    // if your CK form includes custom fields "product" and "price",
+    // this tries to set them after the form loads:
+    const tryFill = ()=>{
+      const f = document.querySelector('form[action*="convertkit"]') || document.querySelector('form');
+      if (!f) return;
+      const set = (name,val)=>{
+        let el = f.querySelector(`[name="fields[${name}]"]`);
+        if(!el){ el = document.createElement('input'); el.type='hidden'; el.name=`fields[${name}]`; f.appendChild(el); }
+        el.value = val;
+      };
+      set('product', product);
+      set('price', price);
+    };
+    // run a few times in case embed loads async
+    tryFill(); setTimeout(tryFill, 800); setTimeout(tryFill, 1600);
+  </script>
+</body>
+</html>

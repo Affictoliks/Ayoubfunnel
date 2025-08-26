@@ -21,20 +21,23 @@
     <p id="summary" class="muted"></p>
     <div id="err" class="error"></div>
 
-    <!-- Direct POST to ConvertKit -->
-    <form id="ck" class="card" action="https://app.convertkit.com/forms/8478389/subscriptions" method="post">
+    <!-- Hidden iframe: lets us POST to ConvertKit without leaving the page -->
+    <iframe name="ck_bg" style="display:none;"></iframe>
+
+    <!-- Direct POST to ConvertKit (background target) -->
+    <form id="ck" class="card" action="https://app.convertkit.com/forms/8478389/subscriptions" method="post" target="ck_bg">
       <!-- visible fields only -->
       <label>Full name *</label>
       <input name="first_name" type="text" required placeholder="Full name"/>
 
       <label>Email *</label>
-      <input name="email_address" type="email" required placeholder="you@example.com"/>
+      <input name="email_address" id="email_address" type="email" required placeholder="you@example.com"/>
 
       <label>Phone *</label>
-      <input name="fields[phone]" type="tel" required placeholder="+1 555 123 4567"/>
+      <input name="fields[phone]" id="phone" type="tel" required placeholder="+1 555 123 4567"/>
 
       <label>City *</label>
-      <input name="fields[city]" type="text" required placeholder="City"/>
+      <input name="fields[city]" id="city" type="text" required placeholder="City"/>
 
       <!-- hidden (auto-filled) -->
       <input type="hidden" name="fields[product_id]" id="product_id">
@@ -47,7 +50,7 @@
   </div>
 
   <script>
-    // Same catalog as product.html (IDs → details). Keep this in sync.
+    // === 1) Product summary (unchanged) ===
     const PRODUCTS = {
       "HP-001": { name:"Wireless Pro Headphones", price:"49.00" },
       "SP-002": { name:"Smartwatch Plus",         price:"79.00" },
@@ -58,17 +61,59 @@
     const pid = q.get('pid');
     const sel = pid && PRODUCTS[pid];
 
+    const errEl = document.getElementById('err');
+    const btn   = document.querySelector('#ck button[type="submit"]');
+
     if (!sel) {
-      document.getElementById('err').textContent = 'Invalid product link. Please go back and choose a product.';
-      document.getElementById('err').style.display = 'block';
-      document.querySelector('#ck button[type="submit"]').disabled = true;
+      errEl.textContent = 'Invalid product link. Please go back and choose a product.';
+      errEl.style.display = 'block';
+      if (btn) btn.disabled = true;
       document.getElementById('summary').textContent = '';
     } else {
-      document.getElementById('summary').textContent = `You're buying: ${sel.name} (ID: ${pid}) — $${sel.price}`;
-      // auto-fill hidden fields for ConvertKit
+      document.getElementById('summary').textContent =
+        `You're buying: ${sel.name} (ID: ${pid}) — $${sel.price}`;
       document.getElementById('product_id').value = pid;
       document.getElementById('product').value    = sel.name;
       document.getElementById('price').value      = sel.price;
+    }
+
+    // === 2) After ConvertKit submit → redirect to Stripe ===
+    // Replace with your Stripe Payment Link (test link now; live later)
+    const STRIPE_LINK = "https://buy.stripe.com/test_14A4gy7oa7d0cai8KI08g00";
+
+    const formEl  = document.getElementById('ck');
+    const emailEl = document.getElementById('email_address');
+
+    if (formEl) {
+      formEl.addEventListener('submit', function () {
+        // Save a copy locally (handy if you want to read it on another page)
+        const name  = (formEl.querySelector('input[name="first_name"]')?.value || '').trim();
+        const email = (emailEl?.value || '').trim();
+        const phone = (document.getElementById('phone')?.value || '').trim();
+        const city  = (document.getElementById('city')?.value || '').trim();
+
+        try {
+          localStorage.setItem('ck_email', email);
+          localStorage.setItem('ck_name', name);
+          localStorage.setItem('ck_phone', phone);
+          localStorage.setItem('ck_city', city);
+          localStorage.setItem('ck_product_id', pid || '');
+          localStorage.setItem('ck_product_name', sel ? sel.name : '');
+          localStorage.setItem('ck_price', sel ? sel.price : '');
+        } catch (_) {}
+
+        // Build Stripe URL (prefill email + a reference we can trace)
+        const ref = [pid || 'NA', Date.now()].join('-');
+        const stripeUrl = STRIPE_LINK
+          + (email ? ("?prefilled_email=" + encodeURIComponent(email)) : "")
+          + (email ? ("&") : "?")
+          + "client_reference_id=" + encodeURIComponent(ref);
+
+        // Give the browser a moment to POST to ConvertKit in the hidden iframe,
+        // then move the main window to Stripe Checkout.
+        setTimeout(() => { window.location.href = stripeUrl; }, 600);
+        // Note: we do NOT preventDefault; the form still posts to ConvertKit (in iframe).
+      });
     }
   </script>
 </body>
